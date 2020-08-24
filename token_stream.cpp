@@ -20,7 +20,7 @@ const char *TokenStream::DIGITS = "0123456789";
 const char *TokenStream::OPERATORS = "+-*/%=&|<>!";
 const char *TokenStream::PUNCTUATIONS = ",;(){}[]";
 const char *TokenStream::WHITESPACES = " \t\n";
-TokenStream::TokenStream(InputStream &input_stream) : input_stream(input_stream)
+TokenStream::TokenStream(InputStream input_stream) : input_stream(input_stream)
 {
     current = Token(NullToken, 1.0);
 }
@@ -28,7 +28,7 @@ bool TokenStream::eof(void)
 {
     return peek().first == NullToken;
 }
-Token TokenStream::next(void)
+const Token TokenStream::next(void)
 {
     Token temp = current;
     current = Token(NullToken, 1.0);
@@ -38,7 +38,7 @@ Token TokenStream::next(void)
     }
     return temp;
 }
-Token TokenStream::peek(void)
+const Token TokenStream::peek(void)
 {
     if (current.first == NullToken)
     {
@@ -46,7 +46,7 @@ Token TokenStream::peek(void)
     }
     return current;
 }
-Token TokenStream::read_next(void)
+const Token TokenStream::read_next(void)
 {
     read_while(is_whitespace);
     if (input_stream.eof())
@@ -88,7 +88,7 @@ void TokenStream::skip_comment(void)
     });
     input_stream.next();
 }
-Token TokenStream::read_string(void)
+const Token TokenStream::read_string(void)
 {
     input_stream.next();
     bool escaped = false;
@@ -116,9 +116,9 @@ Token TokenStream::read_string(void)
     }
     throw input_stream.error_msg("Has no enclosing double quote for string");
 }
-Token TokenStream::read_identifier(void)
+const Token TokenStream::read_identifier(void)
 {
-    auto identifier = read_while(is_identifier);
+    const string identifier = read_while(is_identifier);
     if (is_keyword(identifier))
     {
         return Token(KeywordToken, identifier);
@@ -128,10 +128,10 @@ Token TokenStream::read_identifier(void)
         return Token(VariableToken, identifier);
     }
 }
-Token TokenStream::read_number(void)
+const Token TokenStream::read_number(void)
 {
     bool has_dot = false;
-    auto number = read_while([&](char c) -> bool {
+    string number = read_while([&has_dot](char c) -> bool {
         // static bool has_dot = false;
         if (c == '.')
         {
@@ -144,18 +144,9 @@ Token TokenStream::read_number(void)
         }
         return isdigit(c);
     });
-    // TokenValue tv;
-    // tv = strtod(number->c_str(), NULL);
-    // // Token token(NumToken, tv);
-    // // return token;
-    // return NULL;
-    // new Token();
-    // return new Token(NumToken, 127.0);
-    Token token(NumToken, strtod(number.c_str(), NULL));
-    // cout << &token << endl;
-    return token;
+    return Token(NumToken, strtod(number.c_str(), NULL));
 }
-string TokenStream::read_while(function<bool(char)> predicate)
+const string TokenStream::read_while(function<bool(char)> predicate)
 {
     string buffer;
     while (!input_stream.eof() && predicate(input_stream.peek()))

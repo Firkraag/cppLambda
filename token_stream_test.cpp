@@ -153,6 +153,12 @@ TEST_CASE("test token stream")
         REQUIRE(token_stream2.next() == Token(KeywordToken, "let"));
         REQUIRE(token_stream2.next() == Token(VariableToken, "a=2"));
         REQUIRE(token_stream2.next() == Token(OperatorToken, ">="));
+        TokenStream token_stream3(InputStream("{1;2}"));
+        REQUIRE(token_stream3.next() == Token(PunctuationToken, '{'));
+        REQUIRE(token_stream3.next() == Token(NumToken, 1.0));
+        REQUIRE(token_stream3.next() == Token(PunctuationToken, ';'));
+        REQUIRE(token_stream3.next() == Token(NumToken, 2.0));
+        REQUIRE(token_stream3.next() == Token(PunctuationToken, '}'));
     }
     SECTION("test eof")
     {
