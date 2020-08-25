@@ -542,7 +542,7 @@ shared_ptr<Ast> CallAst::optimize(shared_ptr<LambdaAst> closure)
     {
         args.push_back(arg->optimize(closure));
     }
-    return make_shared<CallAst>(func->optimize(closure), args);
+    return make_shared<CallAst>(func->optimize(closure), std::move(args));
 }
 shared_ptr<Ast> CallAst::to_cps(function<shared_ptr<Ast>(shared_ptr<Ast>)> callback)
 {
@@ -577,7 +577,7 @@ void CallAst::evaluate_callback(shared_ptr<Environment> environment, function<vo
             }
             else
             {
-                (*func)(callback, function_args);
+                (*func)(callback, std::move(function_args));
             }
         };
         loop(0);
@@ -607,7 +607,7 @@ shared_ptr<Object> CallAst::evaluate(shared_ptr<Environment> environment)
     {
         function_args.push_back(arg->evaluate(environment));
     }
-    return (*function)(function_args);
+    return (*function)(std::move(function_args));
 }
 bool CallAst::operator==(const Ast &ast) const
 {

@@ -189,13 +189,13 @@ unique_ptr<Ast> Parser::parse_let(void)
                 defines.push_back(make_unique<BooleanAst>(false));
             }
         }
-        shared_ptr<Ast> func(new LambdaAst(name, varnames, parse_expression()));
-        return make_unique<CallAst>(func, defines);
+        shared_ptr<Ast> func(new LambdaAst(name, std::move(varnames), parse_expression()));
+        return make_unique<CallAst>(func, std::move(defines));
     }
     vector<shared_ptr<VarDef>> vardefs = delimited('(', ')', ',', [](Parser &p) {
         return p.parse_vardef();
     });
-    return make_unique<LetAst>(vardefs, parse_expression());
+    return make_unique<LetAst>(std::move(vardefs), parse_expression());
 }
 shared_ptr<VarDef> Parser::parse_vardef(void)
 {
@@ -232,7 +232,7 @@ unique_ptr<ProgAst> Parser::parse_toplevel(void)
             skip_punc(';');
         }
     }
-    return make_unique<ProgAst>(prog);
+    return make_unique<ProgAst>(std::move(prog));
 }
 unique_ptr<IfAst> Parser::parse_if(void)
 {
@@ -305,7 +305,7 @@ unique_ptr<ProgAst> Parser::parse_prog(void)
     vector<shared_ptr<Ast>> prog = delimited('{', '}', ';', [](Parser &p) -> shared_ptr<Ast> {
         return p.parse_expression();
     });
-    return make_unique<ProgAst>(prog);
+    return make_unique<ProgAst>(std::move(prog));
 }
 unique_ptr<BooleanAst> Parser::parse_bool(void)
 {
@@ -319,7 +319,6 @@ unique_ptr<Ast> Parser::parse_expression(void)
         unique_ptr<Ast> ast = p.maybe_binary(p.parse_atom(), 0);
         if (BinaryAst *binary_ast = dynamic_cast<BinaryAst *>(ast.get()))
         {
-            // BinaryAst binary_ast = cast(BinaryAst, ast);
             if (binary_ast->get_operator() == "||")
             {
                 const string iife_param = generate_unique_symbol("left");
