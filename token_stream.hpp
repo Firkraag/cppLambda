@@ -5,6 +5,7 @@
 #include <set>
 #include <functional>
 #include <variant>
+#include <memory>
 using namespace std;
 enum TokenType
 {
@@ -24,14 +25,14 @@ private:
     Token current;
 
 public:
-    InputStream input_stream;
+    unique_ptr<InputStream> input_stream;
     static set<string> KEYWORDS;
     static const char *DIGITS;
     static const char *OPERATORS;
     static const char *PUNCTUATIONS;
     static const char *WHITESPACES;
 
-    TokenStream(InputStream input_stream);
+    TokenStream(InputStream *input_stream);
     const string error_msg(const string &msg);
     static bool is_keyword(const string &word);
     static bool is_digit(char c);

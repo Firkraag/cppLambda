@@ -69,7 +69,7 @@ static auto make_lambda_callback(Environment &env, LambdaAst &lambda_ast)
     }
     return lambda;
 }
-static auto make_lambda(Environment &env, LambdaAst &lambda_ast)
+static auto make_lambda(Environment &env, const LambdaAst &lambda_ast)
 {
     auto lambda_function = [&env, &lambda_ast](const vector<shared_ptr<Object>> &args) {
         int index = 0;

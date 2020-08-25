@@ -1,12 +1,6 @@
 #include "input_stream.hpp"
 #include <iostream>
 using namespace std;
-InputStream::InputStream(string input) : input(input)
-{
-    pos = 0;
-    line = 1;
-    col = 0;
-}
 const string InputStream::error_msg(const string &msg)
 {
     return msg + " " + to_string(line) + ":" + to_string(col);
@@ -16,7 +10,7 @@ char InputStream::next(void)
     char c;
     try
     {
-        c = input.at(pos);
+        c = input->at(pos);
     }
     catch (out_of_range const &exc)
     {
@@ -40,7 +34,7 @@ char InputStream::peek(void) const
     char c;
     try
     {
-        c = input.at(pos);
+        c = input->at(pos);
     }
     catch (out_of_range const &exc)
     {

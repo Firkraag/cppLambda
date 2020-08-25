@@ -21,48 +21,48 @@ void Parser::skip_punc(char c)
 {
     if (is_punc(c))
     {
-        token_stream.next();
+        token_stream->next();
     }
     else
     {
-        throw token_stream.error_msg("Expecting punctuation: " + to_string(c));
+        throw token_stream->error_msg("Expecting punctuation: " + to_string(c));
     }
 }
 bool Parser::is_punc(char c)
 {
-    auto token = token_stream.peek();
+    auto token = token_stream->peek();
     return token == Token(PunctuationToken, c);
 }
 void Parser::skip_keyword(const string &keyword)
 {
     if (is_keyword(keyword))
     {
-        token_stream.next();
+        token_stream->next();
     }
     else
     {
-        throw token_stream.error_msg("Expecting keyword: " + keyword);
+        throw token_stream->error_msg("Expecting keyword: " + keyword);
     }
 }
 bool Parser::is_keyword(const string &keyword)
 {
-    auto token = token_stream.peek();
+    auto token = token_stream->peek();
     return token == Token(KeywordToken, keyword);
 }
 void Parser::skip_operator(const string &operator_)
 {
     if (is_operator(operator_))
     {
-        token_stream.next();
+        token_stream->next();
     }
     else
     {
-        throw token_stream.error_msg("Expecting operator: " + operator_);
+        throw token_stream->error_msg("Expecting operator: " + operator_);
     }
 }
 bool Parser::is_operator(const string &operator_)
 {
-    auto token = token_stream.peek();
+    auto token = token_stream->peek();
     return token == Token(OperatorToken, operator_);
 }
 vector<string> Parser::delimited(char start, char stop, char separator, string (*parser)(Parser &p))
@@ -70,7 +70,7 @@ vector<string> Parser::delimited(char start, char stop, char separator, string (
     vector<string> list;
     bool first = true;
     skip_punc(start);
-    while (!token_stream.eof())
+    while (!token_stream->eof())
     {
         if (is_punc(stop))
         {
@@ -98,7 +98,7 @@ vector<shared_ptr<VarDef>> Parser::delimited(char start, char stop, char separat
     vector<shared_ptr<VarDef>> list;
     bool first = true;
     skip_punc(start);
-    while (!token_stream.eof())
+    while (!token_stream->eof())
     {
         if (is_punc(stop))
         {
@@ -126,7 +126,7 @@ vector<shared_ptr<Ast>> Parser::delimited(char start, char stop, char separator,
     vector<shared_ptr<Ast>> list;
     bool first = true;
     skip_punc(start);
-    while (!token_stream.eof())
+    while (!token_stream->eof())
     {
         if (is_punc(stop))
         {
@@ -149,32 +149,29 @@ vector<shared_ptr<Ast>> Parser::delimited(char start, char stop, char separator,
     skip_punc(stop);
     return list;
 }
-shared_ptr<LambdaAst> Parser::parse_lambda(const string &keyword)
+unique_ptr<LambdaAst> Parser::parse_lambda(const string &keyword)
 {
     skip_keyword(keyword);
     string name;
-    if (token_stream.peek().first == VariableToken)
+    if (token_stream->peek().first == VariableToken)
     {
-        name = get<string>(token_stream.next().second);
+        name = get<string>(token_stream->next().second);
     }
     else
     {
         name = "";
     }
-    // auto f = bind(&Parser::parse_varname, *this);
     vector<string> params = delimited('(', ')', ',', [](Parser &p) {
         return p.parse_varname();
     });
-    auto body = parse_expression();
-    return make_shared<LambdaAst>(name, params, body);
-    // return shared_ptr<LambdaAst>(new LambdaAst(name, params, body));
+    return make_unique<LambdaAst>(name, params, parse_expression());
 }
-shared_ptr<Ast> Parser::parse_let(void)
+unique_ptr<Ast> Parser::parse_let(void)
 {
     skip_keyword("let");
-    if (token_stream.peek().first == VariableToken)
+    if (token_stream->peek().first == VariableToken)
     {
-        auto name = get<string>(token_stream.next().second);
+        auto name = get<string>(token_stream->next().second);
         vector<shared_ptr<VarDef>> vardefs = delimited('(', ')', ',', [](Parser &p) -> shared_ptr<VarDef> {
             return p.parse_vardef();
         });
@@ -189,17 +186,16 @@ shared_ptr<Ast> Parser::parse_let(void)
             }
             else
             {
-                defines.push_back(make_shared<BooleanAst>(false));
+                defines.push_back(make_unique<BooleanAst>(false));
             }
         }
         shared_ptr<Ast> func(new LambdaAst(name, varnames, parse_expression()));
-        return make_shared<CallAst>(func, defines);
+        return make_unique<CallAst>(func, defines);
     }
     vector<shared_ptr<VarDef>> vardefs = delimited('(', ')', ',', [](Parser &p) {
         return p.parse_vardef();
     });
-    auto body = parse_expression();
-    return make_shared<LetAst>(vardefs, body);
+    return make_unique<LetAst>(vardefs, parse_expression());
 }
 shared_ptr<VarDef> Parser::parse_vardef(void)
 {
@@ -207,7 +203,7 @@ shared_ptr<VarDef> Parser::parse_vardef(void)
     shared_ptr<Ast> define;
     if (is_operator("="))
     {
-        token_stream.next();
+        token_stream->next();
         define = parse_expression();
     }
     return make_shared<VarDef>(name, define);
@@ -215,30 +211,30 @@ shared_ptr<VarDef> Parser::parse_vardef(void)
 string Parser::parse_varname(void)
 {
     // TokenStream &token_stream = parser.token_stream;
-    Token token = token_stream.next();
+    Token token = token_stream->next();
     if (token.first == VariableToken)
     {
         return get<string>(token.second);
     }
     else
     {
-        throw token_stream.error_msg("Expecting variable name");
+        throw token_stream->error_msg("Expecting variable name");
     }
 }
-shared_ptr<ProgAst> Parser::parse_toplevel(void)
+unique_ptr<ProgAst> Parser::parse_toplevel(void)
 {
     vector<shared_ptr<Ast>> prog;
-    while (!token_stream.eof())
+    while (!token_stream->eof())
     {
         prog.push_back(parse_expression());
-        if (!token_stream.eof())
+        if (!token_stream->eof())
         {
             skip_punc(';');
         }
     }
-    return make_shared<ProgAst>(prog);
+    return make_unique<ProgAst>(prog);
 }
-shared_ptr<IfAst> Parser::parse_if(void)
+unique_ptr<IfAst> Parser::parse_if(void)
 {
     skip_keyword("if");
     shared_ptr<Ast> cond = parse_expression();
@@ -253,15 +249,15 @@ shared_ptr<IfAst> Parser::parse_if(void)
         skip_keyword("else");
         else_ = parse_expression();
     }
-    return make_shared<IfAst>(cond, then, else_);
+    return make_unique<IfAst>(cond, then, else_);
 }
-shared_ptr<Ast> Parser::parse_atom(void)
+unique_ptr<Ast> Parser::parse_atom(void)
 {
-    auto parser = [](Parser &parser) -> shared_ptr<Ast> {
+    auto parser = [](Parser &parser) -> unique_ptr<Ast> {
         if (parser.is_punc('('))
         {
             parser.skip_punc('(');
-            shared_ptr<Ast> exp = parser.parse_expression();
+            auto exp = parser.parse_expression();
             parser.skip_punc(')');
             return exp;
         }
@@ -285,42 +281,42 @@ shared_ptr<Ast> Parser::parse_atom(void)
         {
             return parser.parse_lambda("lambda");
         }
-        auto token = parser.token_stream.next();
+        auto token = parser.token_stream->next();
         switch (token.first)
         {
         case NumToken:
-            return make_shared<NumberAst>(get<double>(token.second));
+            return make_unique<NumberAst>(get<double>(token.second));
             break;
         case StringToken:
-            return make_shared<StringAst>(get<string>(token.second));
+            return make_unique<StringAst>(get<string>(token.second));
             break;
         case VariableToken:
-            return make_shared<VarAst>(get<string>(token.second));
+            return make_unique<VarAst>(get<string>(token.second));
             break;
         default:
             break;
         }
-        throw parser.token_stream.error_msg("Unexpected token");
+        throw parser.token_stream->error_msg("Unexpected token");
     };
     return maybe_call(parser);
 }
-shared_ptr<ProgAst> Parser::parse_prog(void)
+unique_ptr<ProgAst> Parser::parse_prog(void)
 {
-    vector<shared_ptr<Ast>> prog = delimited('{', '}', ';', [](Parser &p) {
+    vector<shared_ptr<Ast>> prog = delimited('{', '}', ';', [](Parser &p) -> shared_ptr<Ast> {
         return p.parse_expression();
     });
-    return make_shared<ProgAst>(prog);
+    return make_unique<ProgAst>(prog);
 }
-shared_ptr<BooleanAst> Parser::parse_bool(void)
+unique_ptr<BooleanAst> Parser::parse_bool(void)
 {
-    auto token = token_stream.next();
+    auto token = token_stream->next();
     assert(token.first == KeywordToken);
-    return make_shared<BooleanAst>(get<string>(token.second) == "true");
+    return make_unique<BooleanAst>(get<string>(token.second) == "true");
 }
-shared_ptr<Ast> Parser::parse_expression(void)
+unique_ptr<Ast> Parser::parse_expression(void)
 {
-    auto parser = [](Parser &p) -> shared_ptr<Ast> {
-        shared_ptr<Ast> ast = p.maybe_binary(p.parse_atom(), 0);
+    auto parser = [](Parser &p) -> unique_ptr<Ast> {
+        unique_ptr<Ast> ast = p.maybe_binary(p.parse_atom(), 0);
         if (BinaryAst *binary_ast = dynamic_cast<BinaryAst *>(ast.get()))
         {
             // BinaryAst binary_ast = cast(BinaryAst, ast);
@@ -331,31 +327,31 @@ shared_ptr<Ast> Parser::parse_expression(void)
                 shared_ptr<IfAst> if_ast(new IfAst(shared_ptr<VarAst>(new VarAst(iife_param)), shared_ptr<VarAst>(new VarAst(iife_param)), binary_ast->get_right()));
                 shared_ptr<LambdaAst> func = shared_ptr<LambdaAst>(new LambdaAst("", params, if_ast));
                 vector<shared_ptr<Ast>> args = {binary_ast->get_left()};
-                ast = make_shared<CallAst>(func, args);
+                ast = make_unique<CallAst>(func, args);
             }
             else if (binary_ast->get_operator() == "&&")
             {
-                ast = make_shared<IfAst>(binary_ast->get_left(), binary_ast->get_right(), shared_ptr<BooleanAst>(new BooleanAst(false)));
+                ast = make_unique<IfAst>(binary_ast->get_left(), binary_ast->get_right(), shared_ptr<BooleanAst>(new BooleanAst(false)));
             }
         }
         return ast;
     };
     return maybe_call(parser);
 }
-shared_ptr<CallAst> Parser::parse_call(shared_ptr<Ast> func)
+unique_ptr<CallAst> Parser::parse_call(unique_ptr<Ast> func)
 {
-    return make_shared<CallAst>(func, delimited('(', ')', ',', [](Parser &p) -> shared_ptr<Ast> {
+    return make_unique<CallAst>(std::move(func), delimited('(', ')', ',', [](Parser &p) -> shared_ptr<Ast> {
                                     return p.parse_expression();
                                 }));
 }
-shared_ptr<Ast> Parser::maybe_call(shared_ptr<Ast> (*parser)(Parser &))
+unique_ptr<Ast> Parser::maybe_call(unique_ptr<Ast> (*parser)(Parser &))
 {
     auto expr = parser(*this);
-    return is_punc('(') ? parse_call(expr) : expr;
+    return is_punc('(') ? parse_call(std::move(expr)) : std::move(expr);
 }
-shared_ptr<Ast> Parser::maybe_binary(shared_ptr<Ast> left, int my_prec)
+unique_ptr<Ast> Parser::maybe_binary(unique_ptr<Ast> left, int my_prec)
 {
-    auto token = token_stream.peek();
+    auto token = token_stream->peek();
     if (token.first != OperatorToken)
     {
         return left;
@@ -364,22 +360,22 @@ shared_ptr<Ast> Parser::maybe_binary(shared_ptr<Ast> left, int my_prec)
     int his_prec = PRECEDENCE[token_value];
     if (his_prec > my_prec)
     {
-        token_stream.next();
+        token_stream->next();
         auto right = maybe_binary(parse_atom(), his_prec);
-        shared_ptr<Ast> binary;
+        unique_ptr<Ast> binary;
         if (token_value == "=")
         {
-            binary = make_shared<AssignAst>(left, right);
+            binary = make_unique<AssignAst>(std::move(left), std::move(right));
         }
         else
         {
-            binary = make_shared<BinaryAst>(token_value, left, right);
+            binary = make_unique<BinaryAst>(token_value, std::move(left), std::move(right));
         }
-        return maybe_binary(binary, my_prec);
+        return maybe_binary(std::move(binary), my_prec);
     }
     return left;
 }
-shared_ptr<Ast> Parser::operator()()
+unique_ptr<Ast> Parser::operator()()
 {
     return parse_toplevel();
 }

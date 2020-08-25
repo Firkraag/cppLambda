@@ -20,7 +20,7 @@ const char *TokenStream::DIGITS = "0123456789";
 const char *TokenStream::OPERATORS = "+-*/%=&|<>!";
 const char *TokenStream::PUNCTUATIONS = ",;(){}[]";
 const char *TokenStream::WHITESPACES = " \t\n";
-TokenStream::TokenStream(InputStream input_stream) : input_stream(input_stream)
+TokenStream::TokenStream(InputStream * input_stream) : input_stream(input_stream)
 {
     current = Token(NullToken, 1.0);
 }
@@ -49,11 +49,11 @@ const Token TokenStream::peek(void)
 const Token TokenStream::read_next(void)
 {
     read_while(is_whitespace);
-    if (input_stream.eof())
+    if (input_stream->eof())
     {
         return Token(NullToken, 1.0);
     }
-    char c = input_stream.peek();
+    char c = input_stream->peek();
     if (c == '#')
     {
         skip_comment();
@@ -73,29 +73,29 @@ const Token TokenStream::read_next(void)
     }
     else if (is_punctuation(c))
     {
-        return Token(PunctuationToken, input_stream.next());
+        return Token(PunctuationToken, input_stream->next());
     }
     else if (is_operator(c))
     {
         return Token(OperatorToken, read_while(is_operator));
     }
-    throw input_stream.error_msg("Can't handle character: " + to_string(c));
+    throw input_stream->error_msg("Can't handle character: " + to_string(c));
 }
 void TokenStream::skip_comment(void)
 {
     read_while([](char c) -> bool {
         return c != '\n';
     });
-    input_stream.next();
+    input_stream->next();
 }
 const Token TokenStream::read_string(void)
 {
-    input_stream.next();
+    input_stream->next();
     bool escaped = false;
     string buffer;
-    while (!input_stream.eof())
+    while (!input_stream->eof())
     {
-        char c = input_stream.next();
+        char c = input_stream->next();
         if (escaped)
         {
             buffer.push_back(c);
@@ -114,7 +114,7 @@ const Token TokenStream::read_string(void)
             buffer.push_back(c);
         }
     }
-    throw input_stream.error_msg("Has no enclosing double quote for string");
+    throw input_stream->error_msg("Has no enclosing double quote for string");
 }
 const Token TokenStream::read_identifier(void)
 {
@@ -149,9 +149,9 @@ const Token TokenStream::read_number(void)
 const string TokenStream::read_while(function<bool(char)> predicate)
 {
     string buffer;
-    while (!input_stream.eof() && predicate(input_stream.peek()))
+    while (!input_stream->eof() && predicate(input_stream->peek()))
     {
-        buffer.push_back(input_stream.next());
+        buffer.push_back(input_stream->next());
     }
     return buffer;
 }
@@ -190,5 +190,5 @@ bool TokenStream::is_whitespace(char c)
 }
 const string TokenStream::error_msg(const string &msg)
 {
-    return input_stream.error_msg(msg);
+    return input_stream->error_msg(msg);
 }
