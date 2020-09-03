@@ -15,6 +15,7 @@ using std::endl;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 using std::weak_ptr;
 class VarDefine;
@@ -26,17 +27,14 @@ protected:
     bool constant = false;
 
 public:
-    virtual ~Ast() {};
-    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment) = 0;
-    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback) = 0;
+    virtual ~Ast(){};
+    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment) const = 0;
+    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback) const = 0;
     virtual bool operator==(const Ast &ast) const = 0;
     virtual string to_js() = 0;
-    virtual shared_ptr<Ast> to_cps(function<shared_ptr<Ast>(shared_ptr<Ast>)>) = 0;
+    virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>) = 0;
     virtual bool has_side_effect() = 0;
-    virtual shared_ptr<Ast> optimize(shared_ptr<LambdaAst> closure)
-    {
-        return shared_from_this();
-    }
+    virtual unique_ptr<Ast> optimize(LambdaAst *closure) = 0;
     virtual void make_scope(VarDefineEnv closure_environment, VarDefineEnv global_environment) {}
 };
 class LiteralAst : public Ast
@@ -53,19 +51,16 @@ public:
 };
 class NumberAst : public LiteralAst
 {
-    // private:
-    //     double value;
-
-    // protected:
-    //     bool constant = true;
-
+    
 public:
     NumberAst(double value) : LiteralAst(make_shared<Double>(value)) {}
-    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment);
+    NumberAst(shared_ptr<Object> object) : LiteralAst(object){};
+    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment) const;
     virtual bool operator==(const Ast &ast) const;
     virtual string to_js();
-    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback);
-    virtual shared_ptr<Ast> to_cps(function<shared_ptr<Ast>(shared_ptr<Ast>)>);
+    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback) const;
+    virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>);
+    virtual unique_ptr<Ast> optimize(LambdaAst *closure);
     virtual bool has_side_effect()
     {
         return false;
@@ -75,12 +70,14 @@ class BooleanAst : public LiteralAst
 {
 
 public:
-    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment);
-    BooleanAst(bool value) : LiteralAst(make_shared<Boolean>(value)) {};
+    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment) const;
+    BooleanAst(bool value) : LiteralAst(make_shared<Boolean>(value)){};
+    BooleanAst(shared_ptr<Object> object) : LiteralAst(object){};
     virtual bool operator==(const Ast &ast) const;
     virtual string to_js();
-    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback);
-    virtual shared_ptr<Ast> to_cps(function<shared_ptr<Ast>(shared_ptr<Ast>)>);
+    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback) const;
+    virtual unique_ptr<Ast> optimize(LambdaAst *closure);
+    virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>);
     virtual bool has_side_effect()
     {
         return false;
@@ -89,14 +86,15 @@ public:
 };
 class StringAst : public LiteralAst
 {
-
 public:
-    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment);
-    StringAst(string value) : LiteralAst(make_shared<String>(value)) {};
+    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment) const;
+    StringAst(const string &value) : LiteralAst(make_shared<String>(value)){};
+    StringAst(shared_ptr<Object> object) : LiteralAst(object){};
     virtual bool operator==(const Ast &ast) const;
     virtual string to_js();
-    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback);
-    virtual shared_ptr<Ast> to_cps(function<shared_ptr<Ast>(shared_ptr<Ast>)>);
+    virtual unique_ptr<Ast> optimize(LambdaAst *closure);
+    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback) const;
+    virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>);
     virtual bool has_side_effect()
     {
         return false;
@@ -108,25 +106,27 @@ private:
     string name;
 
 public:
-    weak_ptr<VarDefine> define;
+    shared_ptr<VarDefine> define;
     // VarDefineEnv env;
     VarAst(string name, shared_ptr<VarDefine> define = nullptr) : name(name), define(define) {}
 
-    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment);
+    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment) const;
     virtual bool operator==(const Ast &ast) const;
     virtual string to_js();
     const string &get_name() const
     {
         return name;
     }
-    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback);
-    virtual shared_ptr<Ast> to_cps(function<shared_ptr<Ast>(shared_ptr<Ast>)>);
+    virtual unique_ptr<Ast> optimize(LambdaAst *closure);
+    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback) const;
+    virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>);
     virtual bool has_side_effect()
     {
         return false;
     }
     virtual void make_scope(VarDefineEnv closure_environment, VarDefineEnv global_environment);
-    void set_name(const string &name) {
+    void set_name(const string &name)
+    {
         this->name = name;
     }
 };
@@ -134,9 +134,9 @@ class VarDef
 {
 public:
     string name;
-    shared_ptr<Ast> define;
-    VarDef(string name, shared_ptr<Ast> define)
-        : name(name), define(define) {}
+    unique_ptr<Ast> define;
+    VarDef(string name, unique_ptr<Ast> define)
+        : name(name), define(std::move(define)) {}
     bool operator==(const VarDef &vardef_ast) const;
 };
 class LambdaAst : public Ast
@@ -144,20 +144,20 @@ class LambdaAst : public Ast
 private:
     string name;
     vector<string> params;
-    shared_ptr<Ast> body;
+    unique_ptr<Ast> body;
     vector<string> iife_params{};
     VarDefineEnv env = nullptr;
 
 public:
-    LambdaAst(string name, vector<string> params, shared_ptr<Ast> body)
-        : name(name), params(params), body(body) {}
-    LambdaAst(string name, vector<string> params, shared_ptr<Ast> body, vector<string> iife_params)
-        : name(name), params(params), body(body), iife_params(iife_params) {}
+    LambdaAst(string name, vector<string> params, unique_ptr<Ast> body)
+        : name(name), params(std::move(params)), body(std::move(body)) {}
+    LambdaAst(string name, vector<string> params, unique_ptr<Ast> body, vector<string> iife_params)
+        : name(name), params(params), body(std::move(body)), iife_params(iife_params) {}
     virtual void make_scope(VarDefineEnv closure_environment, VarDefineEnv global_environment);
-    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment);
+    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment) const;
     virtual bool operator==(const Ast &ast) const;
     virtual string to_js();
-    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback);
+    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback) const;
     virtual bool has_side_effect()
     {
         return false;
@@ -170,9 +170,17 @@ public:
     {
         return name;
     }
-    const shared_ptr<Ast> &get_body() const
+    const Ast &get_body() const
     {
-        return body;
+        return *body;
+    }
+    Ast &get_body()
+    {
+        return *body;
+    }
+    unique_ptr<Ast> move_body()
+    {
+        return std::move(body);
     }
     const VarDefineEnv &get_env() const
     {
@@ -182,116 +190,129 @@ public:
     {
         return iife_params;
     }
-    virtual shared_ptr<Ast> to_cps(function<shared_ptr<Ast>(shared_ptr<Ast>)>);
-    virtual shared_ptr<Ast> optimize(shared_ptr<LambdaAst> closure);
+    virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>);
+    virtual unique_ptr<Ast> optimize(LambdaAst *closure);
 };
 class LetAst : public Ast
 {
 private:
-    vector<shared_ptr<VarDef>> vardefs;
-    shared_ptr<Ast> body;
+    vector<unique_ptr<VarDef>> vardefs;
+    unique_ptr<Ast> body;
 
 public:
-    LetAst(vector<shared_ptr<VarDef>> vardefs, shared_ptr<Ast> body) : vardefs(vardefs), body(body) {}
-    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment);
+    LetAst(vector<unique_ptr<VarDef>> vardefs, unique_ptr<Ast> body) : vardefs(std::move(vardefs)), body(std::move(body)) {}
+    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment) const;
     virtual bool operator==(const Ast &ast) const;
     virtual string to_js();
-    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback);
-    virtual shared_ptr<Ast> to_cps(function<shared_ptr<Ast>(shared_ptr<Ast>)>);
+    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback) const;
+    virtual unique_ptr<Ast> optimize(LambdaAst *closure);
+    virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>);
     virtual bool has_side_effect()
     {
-        return any_of(vardefs.begin(), vardefs.end(), [](shared_ptr<VarDef> vardef) {
-            return vardef->define == nullptr ? false : vardef->define->has_side_effect();
-            }) ||
-            body->has_side_effect();
+        return any_of(vardefs.begin(), vardefs.end(), [](unique_ptr<VarDef> &vardef) {
+                   return vardef->define == nullptr ? false : vardef->define->has_side_effect();
+               }) ||
+               body->has_side_effect();
     }
 };
 class CallAst : public Ast
 {
 
 private:
-    shared_ptr<Ast> func;
-    vector<shared_ptr<Ast>> args;
+    unique_ptr<Ast> func;
+    vector<unique_ptr<Ast>> args;
 
 public:
-    CallAst(shared_ptr<Ast> func, vector<shared_ptr<Ast>> args) : func(func), args(args) {}
+    CallAst(unique_ptr<Ast> func, vector<unique_ptr<Ast>> args) : func(std::move(func)), args(std::move(args)) {}
     virtual void make_scope(VarDefineEnv closure_environment, VarDefineEnv global_environment);
-    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment);
+    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment) const;
     virtual bool operator==(const Ast &ast) const;
     virtual string to_js();
-    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback);
-    virtual shared_ptr<Ast> to_cps(function<shared_ptr<Ast>(shared_ptr<Ast>)>);
+    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback) const;
+    virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>);
     virtual bool has_side_effect()
     {
         return true;
     }
-    virtual shared_ptr<Ast> optimize(shared_ptr<LambdaAst> closure);
-    const vector<shared_ptr<Ast>> &get_args() const
+    virtual unique_ptr<Ast> optimize(LambdaAst *closure);
+    const vector<unique_ptr<Ast>> &get_args() const
     {
         return args;
     }
-    const shared_ptr<Ast> &get_func() const
+    vector<unique_ptr<Ast>> &get_args() 
     {
-        return func;
+        return args;
+    }
+    const Ast &get_func() const
+    {
+        return *func;
+    }
+    Ast &get_func() 
+    {
+        return *func;
+    }
+    unique_ptr<Ast> move_func()
+    {
+        return std::move(func);
     }
 };
 class ProgAst : public Ast
 {
 
 private:
-    vector<shared_ptr<Ast>> prog;
+    vector<unique_ptr<Ast>> prog;
 
 public:
-    ProgAst(vector<shared_ptr<Ast>> prog) : prog(prog) {};
+    ProgAst(vector<unique_ptr<Ast>> prog) : prog(std::move(prog)){};
     virtual void make_scope(VarDefineEnv closure_environment, VarDefineEnv global_environment);
-    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment);
+    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment) const;
     virtual bool operator==(const Ast &ast) const;
     virtual string to_js();
-    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback);
-    virtual shared_ptr<Ast> to_cps(function<shared_ptr<Ast>(shared_ptr<Ast>)>);
-    virtual shared_ptr<Ast> optimize(shared_ptr<LambdaAst> closure);
-    const vector<shared_ptr<Ast>> &get_prog() const
+    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback) const;
+    virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>);
+    virtual unique_ptr<Ast> optimize(LambdaAst *closure);
+    const vector<unique_ptr<Ast>> &get_prog() const
     {
         return prog;
     }
     virtual bool has_side_effect()
     {
-        return any_of(prog.begin(), prog.end(), [](shared_ptr<Ast> expr) {
+        return any_of(prog.begin(), prog.end(), [](unique_ptr<Ast> &expr) {
             return expr->has_side_effect();
-            });
+        });
     }
 };
 class IfAst : public Ast
 {
 private:
-    shared_ptr<Ast> cond;
-    shared_ptr<Ast> then;
-    shared_ptr<Ast> else_;
+    unique_ptr<Ast> cond;
+    unique_ptr<Ast> then;
+    unique_ptr<Ast> else_;
 
 public:
-    IfAst(shared_ptr<Ast> cond, shared_ptr<Ast> then, shared_ptr<Ast> else_) : cond(cond), then(then), else_(else_) {};
+    IfAst(unique_ptr<Ast> cond, unique_ptr<Ast> then, unique_ptr<Ast> else_) : cond(std::move(cond)), then(std::move(then)), else_(std::move(else_)){};
     virtual void make_scope(VarDefineEnv closure_environment, VarDefineEnv global_environment);
-    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment);
+    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment) const;
     virtual bool operator==(const Ast &ast) const;
     virtual string to_js();
-    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback);
-    virtual shared_ptr<Ast> to_cps(function<shared_ptr<Ast>(shared_ptr<Ast>)>);
-    virtual shared_ptr<Ast> optimize(shared_ptr<LambdaAst> closure);
+    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback) const;
+    virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>);
+    virtual unique_ptr<Ast> optimize(LambdaAst *closure);
     virtual bool has_side_effect()
     {
         return cond->has_side_effect() || then->has_side_effect() || else_->has_side_effect();
     }
-    const shared_ptr<Ast> &get_cond() const
+    const Ast &get_cond() const
     {
-        return cond;
+        return *cond;
     }
-    const shared_ptr<Ast> &get_then() const
+    const Ast &get_then() const
     {
-        return then;
+        return *then;
     }
-    const shared_ptr<Ast> &get_else() const
+    const Ast &get_else() const
     {
-        return else_;
+        return *else_;
     }
 };
 class BinaryAst : public Ast
@@ -299,30 +320,38 @@ class BinaryAst : public Ast
 
 private:
     string operator_;
-    shared_ptr<Ast> left;
-    shared_ptr<Ast> right;
+    unique_ptr<Ast> left;
+    unique_ptr<Ast> right;
 
 public:
-    BinaryAst(string operator_, shared_ptr<Ast> left, shared_ptr<Ast> right)
-        : operator_(operator_), left(left), right(right) {}
+    BinaryAst(string operator_, unique_ptr<Ast> left, unique_ptr<Ast> right)
+        : operator_(operator_), left(std::move(left)), right(std::move(right)) {}
     virtual void make_scope(VarDefineEnv closure_environment, VarDefineEnv global_environment);
-    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment);
+    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment) const;
     virtual bool operator==(const Ast &ast) const;
     virtual string to_js();
-    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback);
-    virtual shared_ptr<Ast> to_cps(function<shared_ptr<Ast>(shared_ptr<Ast>)>);
-    virtual shared_ptr<Ast> optimize(shared_ptr<LambdaAst> closure);
+    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback) const;
+    virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>);
+    virtual unique_ptr<Ast> optimize(LambdaAst *closure);
     const string &get_operator() const
     {
         return operator_;
     }
-    const shared_ptr<Ast> &get_left() const
+    const Ast &get_left() const
     {
-        return left;
+        return *left;
     }
-    const shared_ptr<Ast> &get_right() const
+    const Ast &get_right() const
     {
-        return right;
+        return *right;
+    }
+    unique_ptr<Ast> move_left()
+    {
+        return std::move(left);
+    }
+    unique_ptr<Ast> move_right()
+    {
+        return std::move(right);
     }
     virtual bool has_side_effect()
     {
@@ -332,23 +361,23 @@ public:
 class AssignAst : public Ast
 {
 private:
-    shared_ptr<Ast> left;
-    shared_ptr<Ast> right;
+    unique_ptr<Ast> left;
+    unique_ptr<Ast> right;
 
 public:
-    AssignAst(shared_ptr<Ast> left, shared_ptr<Ast> right)
-        : left(left), right(right) {}
-    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment);
+    AssignAst(unique_ptr<Ast> left, unique_ptr<Ast> right)
+        : left(std::move(left)), right(std::move(right)) {}
+    virtual shared_ptr<Object> evaluate(shared_ptr<Environment> environment) const;
     virtual bool operator==(const Ast &ast) const;
     virtual string to_js();
-    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback);
-    virtual shared_ptr<Ast> to_cps(function<shared_ptr<Ast>(shared_ptr<Ast>)>);
+    virtual void evaluate_callback(shared_ptr<Environment> environment, function<void(shared_ptr<Object>)> callback) const;
+    virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>);
     const string &get_operator() const;
     virtual bool has_side_effect()
     {
         return true;
     }
-    virtual shared_ptr<Ast> optimize(shared_ptr<LambdaAst> closure);
+    virtual unique_ptr<Ast> optimize(LambdaAst *closure);
     virtual void make_scope(VarDefineEnv closure_environment, VarDefineEnv global_environment);
 };
 enum class VarKind
@@ -362,11 +391,11 @@ class VarDefine
 private:
 public:
     VarKind var_kind;
-    weak_ptr<Ast> current_value;
+    const Ast *current_value;
 
     int assigned = 0;
-    vector<shared_ptr<VarAst>> refs{};
-    VarDefine(VarKind var_kind) : var_kind(var_kind) {};
+    vector<VarAst *> refs{};
+    VarDefine(VarKind var_kind) : var_kind(var_kind){};
 };
 extern bool OptimizeChange;
 #endif

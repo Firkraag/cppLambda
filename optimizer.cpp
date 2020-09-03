@@ -35,7 +35,7 @@
 
 //     return make_shared<IfAst>(cond, then, else_);
 // }
-std::pair<shared_ptr<Ast>, VarDefineEnv> optimize(shared_ptr<Ast>& ast) {
+std::pair<unique_ptr<Ast>, VarDefineEnv> optimize(unique_ptr<Ast> ast) {
     VarDefineEnv global_environment;
     OptimizeChange = true;
     while (OptimizeChange) {
@@ -44,5 +44,5 @@ std::pair<shared_ptr<Ast>, VarDefineEnv> optimize(shared_ptr<Ast>& ast) {
         OptimizeChange = false;
         ast = ast->optimize(nullptr);
     }
-    return std::make_pair(ast, global_environment);
+    return std::make_pair(std::move(ast), global_environment);
 }

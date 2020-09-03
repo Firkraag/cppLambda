@@ -17,22 +17,20 @@ int main(int argc, char const *argv[])
     Parser parser(new TokenStream(new InputStream(new string(std::move(code)))));
     shared_ptr<Environment> environment = std::make_shared<Environment>();
 
-    shared_ptr<VarAst> top_level(new VarAst(string("TOPLEVEL")), [](VarAst *var_ast) {
-        delete var_ast;
-    });
+    unique_ptr<VarAst> top_level = make_unique<VarAst>(string("TOPLEVEL"));
     // cout << parser()->to_js() << endl;
-    auto cps_ast = parser()->to_cps([top_level](shared_ptr<Ast> ast) {
-        return shared_ptr<CallAst>(new CallAst(top_level, vector<shared_ptr<Ast>>{ast}), [](CallAst *call_ast) {
-            delete call_ast;
-        });
+    auto cps_ast = parser()->to_cps([&top_level](unique_ptr<Ast> ast) {
+        vector<unique_ptr<Ast>> args;
+        args.push_back(std::move(ast));
+        return make_unique<CallAst>(std::move(top_level), std::move(args));
     });
     // cout << cps_ast->to_js() << endl;
     // shared_ptr<Ast> cps_ast = make_shared<CallAst>(make_shared<VarAst>("TOPLEVEL"), vector<shared_ptr<Ast>>{parser()});
-    auto result = optimize(cps_ast);
+    auto result = optimize(std::move(cps_ast));
     // cout << "cps_ast use_count = " << cps_ast.use_count() << endl;
     // cout << (result.first.get() == cps_ast.get()) << endl;
     // cout << "top_level use_count = " << top_level.use_count() << endl;
-    auto optimized_code = result.first;
+    auto optimized_code = std::move(result.first);
     auto global_environment = result.second;
     vector<string> global_variable_list;
     for (auto &&var : global_environment->get_vars())

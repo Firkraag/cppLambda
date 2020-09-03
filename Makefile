@@ -16,7 +16,7 @@ DEPS=$(patsubst %.cpp,%.d,$(wildcard *.cpp))
 
 all: build
 build: $(EXECUTABLES) $(LambdaLib)
-$(LambdaLib): evaluator.o parse.o token_stream.o input_stream.o ast.o utils.o object.o
+$(LambdaLib): evaluator.o parse.o token_stream.o input_stream.o ast_evaluate.o ast_to_js.o ast_evaluate_callback.o ast_equality.o ast_to_cps.o ast_make_scope.o ast_optimize.o utils.o object.o
 	ar rcs $@ $^
 test_lambda: test_lambda.o input_stream.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
@@ -28,12 +28,10 @@ utils_test: utils_test.o utils.o object.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 parser_test: parser_test.o $(LambdaLib)
 	$(CXX) $(CXXFLAGS) -o $@ $^
-ast_test: ast_test.o ast.o utils.o object.o
+ast_test: ast_test.o $(LambdaLib)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 object_test: object_test.o object.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
-# evaluator_test: evaluator_test.o $(LambdaLib)
-# 	$(CXX) $(CXXFLAGS) -o $@ $^
 cps_transform: cps_transform.o $(LambdaLib)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 evaluate: evaluate.o primitive.o $(LambdaLib)

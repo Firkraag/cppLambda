@@ -31,11 +31,11 @@ public:
     void skip_operator(const string &operator_);
     bool is_operator(const string &operator_);
     vector<string> delimited(char start, char stop, char separator, string (*parser)(Parser &p));
-    vector<shared_ptr<VarDef>> delimited(char start, char stop, char separator, shared_ptr<VarDef> (*parser)(Parser &p));
-    vector<shared_ptr<Ast>> delimited(char start, char stop, char separator, shared_ptr<Ast> (*parser)(Parser &p));
+    vector<unique_ptr<VarDef>> delimited(char start, char stop, char separator, unique_ptr<VarDef> (*parser)(Parser &p));
+    vector<unique_ptr<Ast>> delimited(char start, char stop, char separator, unique_ptr<Ast> (*parser)(Parser &p));
     unique_ptr<LambdaAst> parse_lambda(const string &keyword);
     unique_ptr<Ast> parse_let(void);
-    shared_ptr<VarDef> parse_vardef(void);
+    unique_ptr<VarDef> parse_vardef(void);
     string parse_varname(void);
     unique_ptr<ProgAst> parse_toplevel(void);
     unique_ptr<IfAst> parse_if(void);

@@ -14,10 +14,10 @@ int main(int argc, char const *argv[])
                      std::istreambuf_iterator<char>());
     Parser parser(new TokenStream(new InputStream(new string(std::move(code)))));
     shared_ptr<Environment> environment = std::make_shared<Environment>();
-    auto cps_ast = parser()->to_cps([](shared_ptr<Ast> ast) {
-        return make_shared<CallAst>(
-            make_shared<VarAst>("TOPLEVEL"),
-            vector<shared_ptr<Ast>>{ast});
+    auto cps_ast = parser()->to_cps([](unique_ptr<Ast> ast) {
+        vector<unique_ptr<Ast>> args;
+        args.push_back(std::move(ast));
+        return make_unique<CallAst>(make_unique<VarAst>("TOPLEVEL"), std::move(args));
     });
     auto js_code = cps_ast->to_js();
     std::cout << js_code << endl;
