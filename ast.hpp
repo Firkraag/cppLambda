@@ -6,9 +6,10 @@
 #include <memory>
 #include <algorithm>
 #include <any>
+#include <llvm/IR/Value.h>
 #include "environment.hpp"
 #include "object.hpp"
-// using namespace std;
+using llvm::Value;
 using std::any;
 using std::cout;
 using std::endl;
@@ -21,7 +22,7 @@ using std::weak_ptr;
 class VarDefine;
 class LambdaAst;
 using VarDefineEnv = shared_ptr<EnvironmentBase<shared_ptr<VarDefine>>>;
-class Ast : public enable_shared_from_this<Ast>
+class Ast
 {
 protected:
     bool constant = false;
@@ -36,6 +37,10 @@ public:
     virtual bool has_side_effect() = 0;
     virtual unique_ptr<Ast> optimize(LambdaAst *closure) = 0;
     virtual void make_scope(VarDefineEnv closure_environment, VarDefineEnv global_environment) {}
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure)
+    {
+        return nullptr;
+    }
 };
 class LiteralAst : public Ast
 {
@@ -51,7 +56,7 @@ public:
 };
 class NumberAst : public LiteralAst
 {
-    
+
 public:
     NumberAst(double value) : LiteralAst(make_shared<Double>(value)) {}
     NumberAst(shared_ptr<Object> object) : LiteralAst(object){};
@@ -65,6 +70,7 @@ public:
     {
         return false;
     }
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 class BooleanAst : public LiteralAst
 {
@@ -82,7 +88,7 @@ public:
     {
         return false;
     }
-    // virtual ostream &operator<<(ostream &output);
+    // virtual llvm::Value *codegen();
 };
 class StringAst : public LiteralAst
 {
@@ -129,6 +135,7 @@ public:
     {
         this->name = name;
     }
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 class VarDef
 {
@@ -192,6 +199,7 @@ public:
     }
     virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>);
     virtual unique_ptr<Ast> optimize(LambdaAst *closure);
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 class LetAst : public Ast
 {
@@ -239,7 +247,7 @@ public:
     {
         return args;
     }
-    vector<unique_ptr<Ast>> &get_args() 
+    vector<unique_ptr<Ast>> &get_args()
     {
         return args;
     }
@@ -247,7 +255,7 @@ public:
     {
         return *func;
     }
-    Ast &get_func() 
+    Ast &get_func()
     {
         return *func;
     }
@@ -255,6 +263,7 @@ public:
     {
         return std::move(func);
     }
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 class ProgAst : public Ast
 {
@@ -281,6 +290,7 @@ public:
             return expr->has_side_effect();
         });
     }
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 class IfAst : public Ast
 {

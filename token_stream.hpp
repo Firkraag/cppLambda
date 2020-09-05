@@ -17,7 +17,7 @@ enum TokenType
     PunctuationToken,
     NullToken,
 };
-typedef variant<double, char, string> TokenValue;
+typedef std::variant<double, char, string> TokenValue;
 typedef pair<enum TokenType, TokenValue> Token;
 class TokenStream
 {
