@@ -379,3 +379,7 @@ unique_ptr<Ast> Parser::operator()()
 {
     return parse_toplevel();
 }
+bool Parser::eof() const
+{
+    return token_stream->eof();
+}

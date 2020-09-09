@@ -6,9 +6,9 @@ TEST_CASE("test input stream")
 {
     SECTION("test next")
     {
-        InputStream input_stream1("");
+        InputStreamStr input_stream1("");
         REQUIRE(input_stream1.next() == '\0');
-        InputStream input_stream2("ab");
+        InputStreamStr input_stream2("ab");
         REQUIRE(input_stream2.next() == 'a');
         REQUIRE(input_stream2.next() == 'b');
         REQUIRE(input_stream2.next() == '\0');
@@ -16,7 +16,7 @@ TEST_CASE("test input stream")
     }
     SECTION("test peek")
     {
-        InputStream input_stream3("ab");
+        InputStreamStr input_stream3("ab");
         REQUIRE(input_stream3.peek() == 'a');
         input_stream3.next();
         REQUIRE(input_stream3.peek() == 'b');
@@ -27,7 +27,7 @@ TEST_CASE("test input stream")
     }
     SECTION("test eof")
     {
-        InputStream input_stream4("ab");
+        InputStreamStr input_stream4("ab");
         REQUIRE(!input_stream4.eof());
         input_stream4.next();
         REQUIRE(!input_stream4.eof());

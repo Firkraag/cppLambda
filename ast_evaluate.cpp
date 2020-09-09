@@ -2,32 +2,29 @@
 #include "utils.hpp"
 #include <assert.h>
 
-static auto make_lambda(Environment &env, const LambdaAst &lambda_ast)
+static auto make_lambda(shared_ptr<Environment> env, const string &name, vector<string> params, shared_ptr<Ast> body)
 {
-    auto lambda_function = [&env, &lambda_ast](const vector<shared_ptr<Object>> &args) {
+    if (!name.empty()) {
+        env = env->extend();
+    }
+    auto lambda_function = [env, params, body](const vector<shared_ptr<Object>> &args) {
         int index = 0;
-        auto scope = env.extend();
-        // (cout << ... << args) << endl;
-        // scope->define(lambda_ast.get_params()[index])
-        assert(lambda_ast.get_params().size() >= args.size());
+        auto scope = env->extend();
+        assert(params.size() >= args.size());
         for (auto arg : args)
         {
-            scope->define(lambda_ast.get_params()[index++], arg);
+            scope->define(params[index++], arg);
         }
-        for (size_t i = index; i < lambda_ast.get_params().size(); i++)
+        for (size_t i = index; i < params.size(); i++)
         {
-            scope->define(lambda_ast.get_params()[i], FALSE);
+            scope->define(params[i], FALSE);
         }
-        return lambda_ast.get_body().evaluate(scope);
+        return body->evaluate(scope);
     };
-    // std::function<shared_ptr<Object>(auto... args)> a;
-    // function<shared_ptr<Object>(initializer_list<shared_ptr<Object>>)> a;
-    // a = lambda_function;
     auto lambda = make_shared<Function>(lambda_function);
-    if (!lambda_ast.get_name().empty())
+    if (!name.empty())
     {
-        env = *(env.extend());
-        env.define(lambda_ast.get_name(), lambda);
+        env->define(name, lambda);
     }
     return lambda;
 }
@@ -52,13 +49,13 @@ shared_ptr<Object> VarAst::evaluate(shared_ptr<Environment> environment) const
 }
 shared_ptr<Object> LambdaAst::evaluate(shared_ptr<Environment> environment) const
 {
-    return make_lambda(*environment, *this);
+    return make_lambda(environment, name, params, body);
 }
 shared_ptr<Object> LetAst::evaluate(shared_ptr<Environment> environment) const
 {
+    auto scope = environment->extend();
     for (auto &&vardef : vardefs)
     {
-        auto scope = environment->extend();
         if (vardef->define)
         {
             scope->define(vardef->name, vardef->define->evaluate(scope));
@@ -67,9 +64,8 @@ shared_ptr<Object> LetAst::evaluate(shared_ptr<Environment> environment) const
         {
             scope->define(vardef->name, FALSE);
         }
-        environment = scope;
     }
-    return body->evaluate(environment);
+    return body->evaluate(scope);
 }
 shared_ptr<Object> CallAst::evaluate(shared_ptr<Environment> environment) const
 {

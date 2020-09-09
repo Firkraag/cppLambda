@@ -19,8 +19,8 @@ private:
     map<string, T> vars;
     shared_ptr<EnvironmentBase<T>> parent;
 public:
-    EnvironmentBase<T>* lookup(const string &var_name);
     EnvironmentBase<T>(shared_ptr<EnvironmentBase<T>> parent = nullptr) : parent(parent){};
+    EnvironmentBase<T>* lookup(const string &var_name);
     bool is_global(void);
     const EnvironmentBase<T>& get_parent() const;
     shared_ptr<EnvironmentBase<T>> extend();

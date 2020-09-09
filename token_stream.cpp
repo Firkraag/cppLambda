@@ -20,7 +20,7 @@ const char *TokenStream::DIGITS = "0123456789";
 const char *TokenStream::OPERATORS = "+-*/%=&|<>!";
 const char *TokenStream::PUNCTUATIONS = ",;(){}[]";
 const char *TokenStream::WHITESPACES = " \t\n";
-TokenStream::TokenStream(InputStream * input_stream) : input_stream(input_stream)
+TokenStream::TokenStream(InputStream *input_stream) : input_stream(input_stream)
 {
     current = Token(NullToken, 1.0);
 }

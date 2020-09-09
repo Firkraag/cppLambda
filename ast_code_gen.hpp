@@ -1,6 +1,5 @@
 #ifndef AST_CODE_GEN_H_
 #define AST_CODE_GEN_H_
-#include "ast.hpp"
 #include <cstdlib>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
@@ -13,6 +12,8 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/Support/raw_os_ostream.h>
+#include "ast.hpp"
+#include "KaleidoscopeJIT.h"
 using llvm::APFloat;
 using llvm::BasicBlock;
 using llvm::CallInst;
@@ -29,4 +30,6 @@ using llvm::verifyFunction;
 extern LLVMContext TheContext;
 extern IRBuilder<> Builder;
 extern std::unique_ptr<Module> TheModule;
+extern std::unique_ptr<llvm::orc::KaleidoscopeJIT> TheJIT;
+
 #endif

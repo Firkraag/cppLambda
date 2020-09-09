@@ -62,7 +62,7 @@ TEST_CASE("test token stream")
     }
     SECTION("test read while")
     {
-        TokenStream token_stream1(new InputStream("ab123="));
+        TokenStream token_stream1(new InputStreamStr("ab123="));
         auto result = token_stream1.read_while([](char c) -> bool {
             return isalnum(c);
         });
@@ -71,47 +71,47 @@ TEST_CASE("test token stream")
     SECTION("test read number")
     {
 
-        TokenStream token_stream1(new InputStream("0.0"));
+        TokenStream token_stream1(new InputStreamStr("0.0"));
         auto result1 = token_stream1.read_number();
         REQUIRE(result1 == Token(NumToken, 0.0));
-        REQUIRE(result1 == Token(NumToken, (double) 0));
-        TokenStream token_stream2(new InputStream("123"));
+        REQUIRE(result1 == Token(NumToken, (double)0));
+        TokenStream token_stream2(new InputStreamStr("123"));
         auto result2 = token_stream2.read_number();
         REQUIRE(result2 == Token(NumToken, 123.0));
-        TokenStream token_stream3(new InputStream("123.3.="));
+        TokenStream token_stream3(new InputStreamStr("123.3.="));
         auto result3 = token_stream3.read_number();
         REQUIRE(result3 == Token(NumToken, 123.3));
-        TokenStream token_stream4(new InputStream("123.1"));
+        TokenStream token_stream4(new InputStreamStr("123.1"));
         auto result4 = token_stream4.read_number();
         REQUIRE(result4 == Token(NumToken, 123.1));
     }
     SECTION("test skip comment")
     {
-        TokenStream token_stream(new InputStream("# abc\ndef"));
+        TokenStream token_stream(new InputStreamStr("# abc\ndef"));
         token_stream.skip_comment();
         REQUIRE(token_stream.input_stream->peek() == 'd');
     }
     SECTION("test read identifier")
     {
-        TokenStream token_stream1(new InputStream("a=1"));
+        TokenStream token_stream1(new InputStreamStr("a=1"));
         REQUIRE(token_stream1.read_identifier() == Token(VariableToken, "a=1"));
-        TokenStream token_stream2(new InputStream("a = 1"));
+        TokenStream token_stream2(new InputStreamStr("a = 1"));
         REQUIRE(token_stream2.read_identifier() == Token(VariableToken, "a"));
-        TokenStream token_stream3(new InputStream("let(a = 1"));
+        TokenStream token_stream3(new InputStreamStr("let(a = 1"));
         REQUIRE(token_stream3.read_identifier() == Token(KeywordToken, "let"));
     }
     SECTION("test read string")
     {
-        TokenStream token_stream1(new InputStream("\"ab\""));
+        TokenStream token_stream1(new InputStreamStr("\"ab\""));
         REQUIRE(token_stream1.read_string() == Token(StringToken, "ab"));
-        TokenStream token_stream2(new InputStream("\"ab\\c\""));
+        TokenStream token_stream2(new InputStreamStr("\"ab\\c\""));
         REQUIRE(token_stream2.read_string() == Token(StringToken, "abc"));
-        TokenStream token_stream3(new InputStream("\"abc"));
+        TokenStream token_stream3(new InputStreamStr("\"abc"));
         REQUIRE_THROWS(token_stream3.read_string());
     }
     SECTION("test read next")
     {
-        TokenStream token_stream(new InputStream(" # comment\n123 abc \"nba\" let a=2  >= ;"));
+        TokenStream token_stream(new InputStreamStr(" # comment\n123 abc \"nba\" let a=2  >= ;"));
         REQUIRE(token_stream.read_next() == Token(NumToken, 123.0));
         REQUIRE(token_stream.read_next() == Token(VariableToken, "abc"));
         REQUIRE(token_stream.read_next() == Token(StringToken, "nba"));
@@ -120,24 +120,24 @@ TEST_CASE("test token stream")
         REQUIRE(token_stream.read_next() == Token(OperatorToken, ">="));
         REQUIRE(token_stream.read_next() == Token(PunctuationToken, ';'));
         REQUIRE(token_stream.read_next().first == NullToken);
-        TokenStream token_stream2(new InputStream("\x08"));
+        TokenStream token_stream2(new InputStreamStr("\x08"));
         REQUIRE_THROWS(token_stream2.read_next());
     }
     SECTION("test peek and next")
     {
-        TokenStream token_stream1(new InputStream(" # comment\n123 abc \"nba\" let a=2  >= ;"));
+        TokenStream token_stream1(new InputStreamStr(" # comment\n123 abc \"nba\" let a=2  >= ;"));
         REQUIRE(token_stream1.peek() == Token(NumToken, 123.0));
         REQUIRE(token_stream1.peek() == Token(NumToken, 123.0));
         REQUIRE(token_stream1.next() == Token(NumToken, 123.0));
 
-        TokenStream token_stream2(new InputStream(" # comment\n123 abc \"nba\" let a=2  >= ;"));
+        TokenStream token_stream2(new InputStreamStr(" # comment\n123 abc \"nba\" let a=2  >= ;"));
         REQUIRE(token_stream2.next() == Token(NumToken, 123.0));
         REQUIRE(token_stream2.next() == Token(VariableToken, "abc"));
         REQUIRE(token_stream2.next() == Token(StringToken, "nba"));
         REQUIRE(token_stream2.next() == Token(KeywordToken, "let"));
         REQUIRE(token_stream2.next() == Token(VariableToken, "a=2"));
         REQUIRE(token_stream2.next() == Token(OperatorToken, ">="));
-        TokenStream token_stream3(new InputStream("{1;2}"));
+        TokenStream token_stream3(new InputStreamStr("{1;2}"));
         REQUIRE(token_stream3.next() == Token(PunctuationToken, '{'));
         REQUIRE(token_stream3.next() == Token(NumToken, 1.0));
         REQUIRE(token_stream3.next() == Token(PunctuationToken, ';'));
@@ -146,7 +146,7 @@ TEST_CASE("test token stream")
     }
     SECTION("test eof")
     {
-        TokenStream token_stream1(new InputStream("# comment\n"));
+        TokenStream token_stream1(new InputStreamStr("# comment\n"));
         REQUIRE(token_stream1.eof());
     }
 }

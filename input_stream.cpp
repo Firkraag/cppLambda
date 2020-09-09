@@ -5,7 +5,7 @@ const string InputStream::error_msg(const string &msg)
 {
     return msg + " " + to_string(line) + ":" + to_string(col);
 }
-char InputStream::next(void)
+char InputStreamStr::next(void)
 {
     char c;
     try
@@ -29,7 +29,7 @@ char InputStream::next(void)
     }
     return c;
 }
-char InputStream::peek(void) const
+char InputStreamStr::peek(void)
 {
     char c;
     try
@@ -42,7 +42,42 @@ char InputStream::peek(void) const
     }
     return c;
 }
-bool InputStream::eof(void) const
+bool InputStreamStr::eof(void)
 {
     return peek() == '\0';
+}
+
+char InputStreamStdin::next(void)
+{
+    auto result = current_char;
+
+    auto c = getchar();
+    if (c == EOF)
+    {
+        current_char = '\0';
+    }
+    else {
+        current_char = c;
+    }
+    pos++;
+    if (current_char == '\n')
+    {
+        line++;
+        col = 0;
+    }
+    else
+    {
+        col++;
+    }
+    return result;
+}
+
+char InputStreamStdin::peek(void)
+{
+    return current_char;
+}
+
+bool InputStreamStdin::eof(void)
+{
+    return current_char == '\0';
 }

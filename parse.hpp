@@ -24,6 +24,7 @@ private:
 public:
     unique_ptr<TokenStream> token_stream;
     Parser(TokenStream* token_stream) : token_stream(token_stream) {}
+    Parser(string code) : token_stream(new TokenStream(new InputStreamStr(new string(code)))) {}
     void skip_punc(char c);
     bool is_punc(char c);
     void skip_keyword(const string &keyword);
@@ -47,5 +48,6 @@ public:
     unique_ptr<Ast> maybe_call(unique_ptr<Ast> (*parser)(Parser &));
     unique_ptr<Ast> maybe_binary(unique_ptr<Ast> left, int my_prec);
     unique_ptr<Ast> operator()();
+    bool eof() const;
 };
 #endif
