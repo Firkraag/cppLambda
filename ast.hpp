@@ -39,7 +39,7 @@ public:
     virtual bool has_side_effect() = 0;
     virtual unique_ptr<Ast> optimize(LambdaAst *closure) = 0;
     virtual void make_scope(VarDefineEnv closure_environment, VarDefineEnv global_environment) {}
-    virtual llvm::Value *codegen(std::map<std::string, llvm::AllocaInst *> &closure)
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure)
     {
         return nullptr;
     }
@@ -72,7 +72,7 @@ public:
     {
         return false;
     }
-    virtual llvm::Value *codegen(std::map<std::string, llvm::AllocaInst *> &closure);
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 class BooleanAst : public LiteralAst
 {
@@ -137,7 +137,7 @@ public:
     {
         this->name = name;
     }
-    virtual llvm::Value *codegen(std::map<std::string, llvm::AllocaInst *> &closure);
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 class VarDef
 {
@@ -197,7 +197,7 @@ public:
     }
     virtual unique_ptr<Ast> to_cps(function<unique_ptr<Ast>(unique_ptr<Ast>)>);
     virtual unique_ptr<Ast> optimize(LambdaAst *closure);
-    virtual llvm::Value *codegen(std::map<std::string, llvm::AllocaInst *> &closure);
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 class LetAst : public Ast
 {
@@ -220,7 +220,7 @@ public:
                }) ||
                body->has_side_effect();
     }
-    virtual llvm::Value *codegen(std::map<std::string, llvm::AllocaInst *> &closure);
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 class CallAst : public Ast
 {
@@ -262,7 +262,7 @@ public:
     {
         return std::move(func);
     }
-    virtual llvm::Value *codegen(std::map<std::string, llvm::AllocaInst *> &closure);
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 class ProgAst : public Ast
 {
@@ -289,7 +289,7 @@ public:
             return expr->has_side_effect();
         });
     }
-    virtual llvm::Value *codegen(std::map<std::string, llvm::AllocaInst *> &closure);
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 class IfAst : public Ast
 {
@@ -323,7 +323,7 @@ public:
     {
         return *else_;
     }
-    virtual llvm::Value *codegen(std::map<std::string, llvm::AllocaInst *> &closure);
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 class BinaryAst : public Ast
 {
@@ -367,7 +367,7 @@ public:
     {
         return left->has_side_effect() || right->has_side_effect();
     }
-    virtual llvm::Value *codegen(std::map<std::string, llvm::AllocaInst *> &closure);
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 class AssignAst : public Ast
 {
@@ -390,7 +390,7 @@ public:
     }
     virtual unique_ptr<Ast> optimize(LambdaAst *closure);
     virtual void make_scope(VarDefineEnv closure_environment, VarDefineEnv global_environment);
-    virtual llvm::Value *codegen(std::map<std::string, llvm::AllocaInst *> &closure);
+    virtual llvm::Value *codegen(std::map<std::string, llvm::Instruction *> &closure);
 };
 enum class VarKind
 {

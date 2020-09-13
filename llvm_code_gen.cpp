@@ -21,7 +21,7 @@ int main(int argc, char const *argv[])
     {
         std::cout << "ready> ";
         Parser parser(new TokenStream(new InputStreamStdin()));
-        std::map<std::string, llvm::AllocaInst *> closure;
+        std::map<std::string, llvm::Instruction *> closure;
         // FunctionType *FT =
         //     FunctionType::get(Type::getDoubleTy(TheContext), vector<Type *>(0, Type::getDoubleTy(TheContext)), false);
 
@@ -63,7 +63,7 @@ int main(int argc, char const *argv[])
         std::ifstream lambda_source_file(argv[1]);
         std::string code((std::istreambuf_iterator<char>(lambda_source_file)),
                          std::istreambuf_iterator<char>());
-        std::map<std::string, llvm::AllocaInst *> closure;
+        std::map<std::string, llvm::Instruction *> closure;
         auto result = Parser(code)()->codegen(closure);
         result->print(errs());
         cout << endl;

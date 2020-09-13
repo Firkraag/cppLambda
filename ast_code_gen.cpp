@@ -1,5 +1,6 @@
 #include "ast_code_gen.hpp"
 #include "utils.hpp"
+#include "llvm/IR/Type.h"
 LLVMContext TheContext;
 IRBuilder<> Builder(TheContext);
 std::unique_ptr<Module> TheModule;
@@ -44,16 +45,16 @@ static Value *LogErrorV(const char *Str)
     LogError(Str);
     return nullptr;
 }
-llvm::Value *NumberAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure)
+llvm::Value *NumberAst::codegen(std::map<std::string, llvm::Instruction *> &closure)
 {
     const Double *d = dynamic_cast<const Double *>(value.get());
     return ConstantFP::get(TheContext, APFloat(d->get_value()));
 }
 
-llvm::Value *VarAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure)
+llvm::Value *VarAst::codegen(std::map<std::string, llvm::Instruction *> &closure)
 {
     // Look this variable up in the function.
-    llvm::AllocaInst *V = closure[name];
+    llvm::Instruction *V = closure[name];
     if (!V)
         return LogErrorV("Unknown variable name");
 
@@ -61,9 +62,9 @@ llvm::Value *VarAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure)
     return Builder.CreateLoad(V, name.c_str());
 }
 
-llvm::Value *LambdaAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure)
+llvm::Value *LambdaAst::codegen(std::map<std::string, llvm::Instruction *> &closure)
 {
-    std::map<std::string, llvm::AllocaInst *> self_closure(closure);
+    std::map<std::string, llvm::Instruction *> self_closure(closure);
     FunctionProtos[name] = params;
     llvm::Function *TheFunction = getFunctionProto(name, params);
     if (!TheFunction)
@@ -74,24 +75,28 @@ llvm::Value *LambdaAst::codegen(std::map<std::string, llvm::AllocaInst *> &closu
     BasicBlock *BB = BasicBlock::Create(TheContext, "entry", TheFunction);
 
     Builder.SetInsertPoint(BB);
+    // Type *IntPtrTy = IntegerType::getInt32Ty(TheContext);
+    // Type *Int8Ty = IntegerType::getInt8Ty(TheContext);
+    // Constant *allocsize = ConstantExpr::getSizeOf(Int8Ty);
+    // allocsize = ConstantExpr::getTruncOrBitCast(allocsize, IntPtrTy);
+    // auto ptr_arr = CallInst::CreateMalloc(BB, IntPtrTy, Int8Ty, allocsize, nullptr,
+    //                                       nullptr, "arr");
+    // BB->getInstList().push_back(cast<Instruction>(ptr_arr));
+    // Builder.CreateStore(ConstantInt::get(TheContext, APInt(8, 65)), ptr_arr);
     for (auto &Arg : TheFunction->args())
     {
-        // Create an alloca for this variable.
-        llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName());
-
-        // Store the initial value into the alloca.
-        Builder.CreateStore(&Arg, Alloca);
-        // llvm::Constant *allocsize = llvm::ConstantExpr::getSizeOf(DoubleTy);
-        // auto malloc_value =
-        //     llvm::CallInst::CreateMalloc(Builder.GetInsertBlock(), Int32, DoubleTy, allocsize, nullptr, nullptr, Arg.getName());
-        // Builder.CreateStore(&Arg, malloc_value);
-        // self_closure[Arg.getName()] = malloc_value;
-        self_closure[Arg.getName()] = Alloca;
+        llvm::Constant *allocsize = llvm::ConstantExpr::getSizeOf(DoubleTy);
+        auto malloc_inst =
+            llvm::CallInst::CreateMalloc(Builder.GetInsertBlock(), Int32, DoubleTy, allocsize, nullptr, nullptr, "");
+        BB->getInstList().push_back(malloc_inst);
+        Builder.CreateStore(&Arg, malloc_inst);
+        self_closure[Arg.getName()] = malloc_inst;
     }
     if (Value *RetVal = body->codegen(self_closure))
     {
         Builder.CreateRet(RetVal);
         verifyFunction(*TheFunction);
+        TheFunction->print(errs());
         return TheFunction;
     }
     // Error reading body, remove function.
@@ -99,7 +104,7 @@ llvm::Value *LambdaAst::codegen(std::map<std::string, llvm::AllocaInst *> &closu
 
     return nullptr;
 }
-llvm::Value *ProgAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure)
+llvm::Value *ProgAst::codegen(std::map<std::string, llvm::Instruction *> &closure)
 {
     Value *result = nullptr;
     for (auto &&expr : prog)
@@ -108,7 +113,7 @@ llvm::Value *ProgAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure
     }
     return result;
 }
-llvm::Value *CallAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure)
+llvm::Value *CallAst::codegen(std::map<std::string, llvm::Instruction *> &closure)
 {
 
     const VarAst *var_ast = dynamic_cast<const VarAst *>(func.get());
@@ -137,7 +142,7 @@ llvm::Value *CallAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure
 
     return Builder.CreateCall(function, ArgsV, "calltmp");
 }
-llvm::Value *BinaryAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure)
+llvm::Value *BinaryAst::codegen(std::map<std::string, llvm::Instruction *> &closure)
 {
     Value *L = left->codegen(closure);
     Value *R = right->codegen(closure);
@@ -177,9 +182,9 @@ llvm::Value *BinaryAst::codegen(std::map<std::string, llvm::AllocaInst *> &closu
     return LogErrorV("invalid binary operator");
 }
 
-llvm::Value *LetAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure)
+llvm::Value *LetAst::codegen(std::map<std::string, llvm::Instruction *> &closure)
 {
-    std::map<std::string, llvm::AllocaInst *> self_closure(closure);
+    std::map<std::string, llvm::Instruction *> self_closure(closure);
     auto TheFunction = Builder.GetInsertBlock()->getParent();
     for (auto &&vardef : vardefs)
     {
@@ -198,7 +203,7 @@ llvm::Value *LetAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure)
     }
     return body->codegen(self_closure);
 }
-llvm::Value *IfAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure)
+llvm::Value *IfAst::codegen(std::map<std::string, llvm::Instruction *> &closure)
 {
     Value *cond_value = cond->codegen(closure);
     if (!cond_value)
@@ -252,7 +257,7 @@ llvm::Value *IfAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure)
     PN->addIncoming(ElseV, ElseBB);
     return PN;
 }
-llvm::Value *AssignAst::codegen(std::map<std::string, llvm::AllocaInst *> &closure)
+llvm::Value *AssignAst::codegen(std::map<std::string, llvm::Instruction *> &closure)
 {
     const VarAst *left_node = dynamic_cast<const VarAst *>(left.get());
     if (left_node == nullptr)
